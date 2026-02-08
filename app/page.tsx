@@ -1,13 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Blueprint = {
   role_focus: string[];
   likely_interview_type: "behavioral" | "technical" | "mixed";
   risk_gaps: string[];
   company_notes: string[];
-  sample_questions: { type: "behavioral" | "technical" | "case"; question: string }[];
+  sample_questions: {
+    type: "behavioral" | "technical" | "case";
+    question: string;
+  }[];
 };
 
 const MOCK_RESUME = `Caroline Nkan
@@ -22,6 +26,8 @@ Qualifications: analytics, execution, user empathy, stakeholder management.
 `;
 
 export default function Home() {
+  const router = useRouter();
+
   const [company, setCompany] = useState("Google");
   const [resumeText, setResumeText] = useState(MOCK_RESUME);
   const [jdText, setJdText] = useState(MOCK_JD);
@@ -32,7 +38,11 @@ export default function Home() {
   const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
 
   const canGenerate = useMemo(() => {
-    return company.trim().length > 1 && resumeText.trim().length > 20 && jdText.trim().length > 20;
+    return (
+      company.trim().length > 1 &&
+      resumeText.trim().length > 20 &&
+      jdText.trim().length > 20
+    );
   }, [company, resumeText, jdText]);
 
   async function generateBlueprint() {
@@ -51,8 +61,10 @@ export default function Home() {
 
     if (data?.blueprint) {
       setBlueprint(data.blueprint);
-      // store for Day 3
-      sessionStorage.setItem("interviewee_blueprint", JSON.stringify(data.blueprint));
+      sessionStorage.setItem(
+        "interviewee_blueprint",
+        JSON.stringify(data.blueprint)
+      );
       sessionStorage.setItem("interviewee_company", company);
     } else {
       setError(data?.error || "No blueprint returned");
@@ -79,12 +91,13 @@ export default function Home() {
               className="w-full border rounded p-2"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="e.g., Google or a company URL"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">Resume (paste text for now)</label>
+            <label className="text-sm font-medium">
+              Resume (paste text for now)
+            </label>
             <textarea
               className="w-full border rounded p-2 min-h-[180px]"
               value={resumeText}
@@ -120,7 +133,8 @@ export default function Home() {
         <div className="md:col-span-2 space-y-4">
           {!blueprint ? (
             <div className="border rounded p-6 text-sm opacity-80">
-              Paste your inputs and generate a blueprint. This screen will become the “reasoning dashboard.”
+              Paste your inputs and generate a blueprint. This becomes the
+              reasoning dashboard.
             </div>
           ) : (
             <>
@@ -160,7 +174,9 @@ export default function Home() {
                 <div className="space-y-3">
                   {blueprint.sample_questions.map((q, i) => (
                     <div key={i} className="border rounded p-3">
-                      <div className="text-xs uppercase opacity-70">{q.type}</div>
+                      <div className="text-xs uppercase opacity-70">
+                        {q.type}
+                      </div>
                       <div className="text-sm">{q.question}</div>
                     </div>
                   ))}
@@ -169,7 +185,7 @@ export default function Home() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => alert("Day 3: this will route to /interview")}
+                  onClick={() => router.push("/interview")}
                   className="px-4 py-2 rounded bg-black text-white"
                 >
                   Start Interview (Day 3)
@@ -200,7 +216,13 @@ export default function Home() {
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="border rounded p-4 space-y-2">
       <h2 className="text-sm font-semibold">{title}</h2>
