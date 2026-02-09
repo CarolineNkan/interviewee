@@ -373,9 +373,8 @@ export default function InterviewPage() {
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Live Interview (Voice + Text)</h1>
-            <p className="text-sm text-white/70">
-              Day 5 — STAR detection + scorecard + rewritten answers
-            </p>
+        
+    
           </div>
 
           <div className="flex items-center gap-3">
@@ -778,14 +777,27 @@ function MiniStat({
   value: string;
   hint?: string;
 }) {
+  const isLong = value.length > 80;
+
   return (
     <div className="rounded-2xl border bg-neutral-50 p-3">
       <div className="text-xs font-semibold text-black/60">{label}</div>
-      <div className="text-sm font-semibold mt-1">{value}</div>
+
+      {/* Scroll inside card when text is long */}
+      <div
+        className={[
+          "mt-1 text-sm font-semibold",
+          isLong ? "max-h-[140px] overflow-auto pr-1 whitespace-pre-wrap leading-relaxed" : "",
+        ].join(" ")}
+      >
+        {value}
+      </div>
+
       {hint ? <div className="text-xs text-black/50 mt-1">{hint}</div> : null}
     </div>
   );
 }
+
 
 function StarRow({
   label,
