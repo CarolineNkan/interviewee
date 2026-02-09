@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+##Interviewee 
 
-## Getting Started
+Interviewee is a Gemini-powered interview preparation platform that turns a resume and job description into a personalized interview blueprint, then runs a live, adaptive interview with real-time coaching and scoring.
 
-First, run the development server:
+Instead of static practice questions, Interviewee simulates how real interviewers think — probing gaps, adjusting follow-ups, and evaluating answers dynamically.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What It Does
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Interview Blueprint Engine
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Analyzes a resume + job description
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Identifies role focus, risk gaps, company-specific notes
 
-## Learn More
+Predicts the most likely interview format (behavioral + technical or behavioral + case)
 
-To learn more about Next.js, take a look at the following resources:
+Live Interview Simulation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Launches a real-time interview based on the blueprint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Asks adaptive follow-up questions like a real interviewer
 
-## Deploy on Vercel
+Supports voice input and text-to-speech for realism
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Coaching & Scorecard
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Evaluates answers using the STAR framework
+
+Scores clarity, structure, impact, and role fit
+
+Highlights strengths, gaps, and rewrites answers for improvement
+
+## How Gemini 3 Is Used
+
+Interviewee is powered by Gemini 3 Flash Preview and uses Gemini in two core ways:
+
+Structured reasoning: Generating explainable interview blueprints as JSON
+
+Adaptive intelligence: Orchestrating live interviews, scoring responses, detecting STAR components, and producing coaching feedback in real time
+
+This makes the system fast, transparent, and controllable — not a black box.
+
+## Tech Stack
+
+Google Gemini 3 Flash Preview
+
+Next.js (App Router)
+
+TypeScript
+
+Google GenAI SDK
+
+Web Speech API (STT + TTS)
+
+Tailwind CSS
+
+Vercel
+
+🌍 Why It Matters
+
+Interviewee lowers the barrier to high-quality interview preparation, especially for early-career and career-switching candidates who don’t have access to expensive coaching.
