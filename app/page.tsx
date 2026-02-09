@@ -13,23 +13,13 @@ type Blueprint = {
   sample_questions: { type: "behavioral" | "technical" | "case"; question: string }[];
 };
 
-const MOCK_RESUME = `Caroline Nkan
-- Led cross-functional projects and stakeholder communication
-- Built dashboards and presented insights
-- Tools: Excel, Power BI, SQL, Next.js
-`;
-
-const MOCK_JD = `Associate Product Manager
-Responsibilities: define requirements, analyze metrics, work cross-functionally, communicate clearly.
-Qualifications: analytics, execution, user empathy, stakeholder management.
-`;
-
 export default function Home() {
   const router = useRouter();
 
-  const [company, setCompany] = useState("Google");
-  const [resumeText, setResumeText] = useState(MOCK_RESUME);
-  const [jobDescription, setJobDescription] = useState(MOCK_JD);
+  
+  const [company, setCompany] = useState("");
+  const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -93,10 +83,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Interviewee</h1>
-            <p className="text-sm text-white/70">
-              Day 2 — Interview Blueprint Engine{" "}
-              <span className="hidden sm:inline">(judges can see reasoning)</span>
-            </p>
+
           </div>
 
           <div className="hidden md:flex items-center gap-2">
@@ -128,25 +115,25 @@ export default function Home() {
                   className="w-full rounded-xl border bg-white px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  placeholder="e.g., Google"
+                  placeholder="e.g., Google, Shopify, Deloitte"
                 />
               </Field>
 
-              <Field label="Resume (paste text for now)">
+              <Field label="Resume (paste text)">
                 <textarea
                   className="w-full rounded-xl border bg-white px-3 py-2 text-sm min-h-[160px] resize-y outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
                   value={resumeText}
                   onChange={(e) => setResumeText(e.target.value)}
-                  placeholder="Paste resume text…"
+                  placeholder="Paste your resume text here…"
                 />
               </Field>
 
-              <Field label="Job Description">
+              <Field label="Job Description (paste text)">
                 <textarea
                   className="w-full rounded-xl border bg-white px-3 py-2 text-sm min-h-[160px] resize-y outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
                   value={jobDescription}
                   onChange={(e) => setJobDescription(e.target.value)}
-                  placeholder="Paste job description…"
+                  placeholder="Paste the job description here…"
                 />
               </Field>
 
@@ -160,7 +147,7 @@ export default function Home() {
 
               <div className="rounded-xl border bg-neutral-50 p-3">
                 <p className="text-xs text-black/60">
-                  <span className="font-semibold text-black/70">Demo tip:</span> Use your real resume +
+                  <span className="font-semibold text-black/70">Tip:</span> Use your real resume +
                   the real JD for the most convincing “judge flow”.
                 </p>
               </div>
@@ -241,7 +228,7 @@ export default function Home() {
 
                   <Card title="Likely interview type">
                     <div className="text-sm text-black/70">
-                      Your strongest “Day 3 live interview” mode is already selected based on this.
+                      Your strongest “live interview” mode is already selected based on this.
                     </div>
                     <div className="mt-3 inline-flex items-center rounded-full border bg-neutral-50 px-3 py-1 text-xs font-semibold">
                       {labelLikely(blueprint.likely_interview_type)}
@@ -341,4 +328,3 @@ function SkeletonCard({ title }: { title: string }) {
     </div>
   );
 }
-
