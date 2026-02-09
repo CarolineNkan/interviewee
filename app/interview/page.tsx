@@ -3,50 +3,137 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Blueprint = any;
+type InterviewType = "behavioral_technical" | "behavioral_case";
+type Mode = "behavioral" | "technical" | "case";
+
+type Blueprint = {
+  role_focus: string[];
+  likely_interview_type: InterviewType;
+  risk_gaps: string[];
+  company_notes: string[];
+  sample_questions: { type: "behavioral" | "technical" | "case"; question: string }[];
+};
 
 type Turn = {
   role: "interviewer" | "candidate";
   content: string;
 };
 
+type Scorecard = {
+  mode: Mode;
+  star: {
+    situation: { present: boolean; evidence: string };
+    task: { present: boolean; evidence: string };
+    action: { present: boolean; evidence: string };
+    result: { present: boolean; evidence: string };
+  };
+  scores: {
+    overall: number;
+    clarity: number;
+    structure: number;
+    impact: number;
+    roleFit: number;
+  };
+  strengths: string[];
+  gaps: string[];
+  rewrite: {
+    improvedAnswer: string;
+    bulletsToAdd: string[];
+  };
+};
+
+function badgeForScore(overall: number) {
+  if (overall >= 85) return { label: "🟢 Strong", className: "border-green-600" };
+  if (overall >= 70) return { label: "🟡 Good but sharpen", className: "border-yellow-600" };
+  return { label: "🔴 Needs work", className: "border-red-600" };
+}
+
 export default function InterviewPage() {
   const router = useRouter();
 
-  const [company, setCompany] = useState<string>("");
+  const [company, setCompany] = useState("");
+  const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
   const [blueprint, setBlueprint] = useState<Blueprint | null>(null);
 
-  const [mode, setMode] = useState<"behavioral" | "technical" | "case">(
-    "behavioral"
-  );
+  const [mode, setMode] = useState<Mode>("behavioral");
 
   const [transcript, setTranscript] = useState<Turn[]>([]);
   const [answer, setAnswer] = useState("");
 
   const [coach, setCoach] = useState<any>(null);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+
   const [raw, setRaw] = useState<string>("");
   const [error, setError] = useState<string>("");
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ Day 4 voice state (Step 1 + Step 2 STT + Step 3 TTS)
+  // Voice
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [supportedSTT, setSupportedSTT] = useState(true);
   const [supportedTTS, setSupportedTTS] = useState(true);
   const [muted, setMuted] = useState(false);
 
-  // ✅ Step 2 STT: live dictation buffer
   const recognitionRef = useRef<any>(null);
   const [draftAnswer, setDraftAnswer] = useState("");
-
-  // ✅ Step 3 TTS: speaking state
   const speakingRef = useRef(false);
 
-  const ready = useMemo(() => Boolean(company && blueprint), [company, blueprint]);
+  const ready = useMemo(
+    () => Boolean(company && resumeText && jobDescription && blueprint),
+    [company, resumeText, jobDescription, blueprint]
+  );
+
+  const allowedModes = useMemo<Mode[]>(() => {
+    if (!blueprint) return ["behavioral", "technical", "case"];
+    return blueprint.likely_interview_type === "behavioral_technical"
+      ? ["behavioral", "technical"]
+      : ["behavioral", "case"];
+  }, [blueprint]);
+
+  useEffect(() => {
+    const bp = sessionStorage.getItem("interviewee_blueprint");
+    const comp = sessionStorage.getItem("interviewee_company");
+    const res = sessionStorage.getItem("interviewee_resumeText");
+    const jd = sessionStorage.getItem("interviewee_jobDescription");
+
+    if (!bp || !comp || !res || !jd) {
+      router.push("/");
+      return;
+    }
+
+    const parsed = JSON.parse(bp) as Blueprint;
+    setBlueprint(parsed);
+    setCompany(comp);
+    setResumeText(res);
+    setJobDescription(jd);
+
+    // default mode
+    if (parsed?.likely_interview_type === "behavioral_technical") setMode("behavioral");
+    else setMode("behavioral");
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const w = window as any;
+    const hasSTT = !!(w.SpeechRecognition || w.webkitSpeechRecognition);
+    const hasTTS = !!window.speechSynthesis;
+
+    setSupportedSTT(hasSTT);
+    setSupportedTTS(hasTTS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopListening();
+      stopSpeaking();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // -------- Voice helpers --------
-
   function getSpeechRecognition(): any | null {
     if (typeof window === "undefined") return null;
     const w = window as any;
@@ -63,7 +150,6 @@ export default function InterviewPage() {
   function firstOneTwoSentences(text: string) {
     const cleaned = String(text || "").replace(/\s+/g, " ").trim();
     if (!cleaned) return "";
-    // Grab up to 2 sentences
     const parts = cleaned.split(/(?<=[.!?])\s+/);
     return parts.slice(0, 2).join(" ");
   }
@@ -101,7 +187,6 @@ export default function InterviewPage() {
       return;
     }
 
-    // ✅ Step 4 interruption: user starts talking → stop TTS
     stopSpeaking();
 
     const rec = new SR();
@@ -124,7 +209,6 @@ export default function InterviewPage() {
 
       const merged = (finalText + interim).trim();
       setDraftAnswer(merged);
-      // keep answer in sync so Submit works even if listening stops
       setAnswer(merged);
     };
 
@@ -149,48 +233,6 @@ export default function InterviewPage() {
   }
 
   // -------- App logic --------
-
-  // Load blueprint from sessionStorage
-  useEffect(() => {
-    const bp = sessionStorage.getItem("interviewee_blueprint");
-    const comp = sessionStorage.getItem("interviewee_company");
-
-    if (!bp || !comp) {
-      router.push("/");
-      return;
-    }
-
-    const parsed = JSON.parse(bp);
-    setBlueprint(parsed);
-    setCompany(comp);
-
-    // seed mode from blueprint
-    const t = parsed?.likely_interview_type;
-    if (t === "behavioral" || t === "technical") setMode(t);
-    else setMode("behavioral");
-  }, [router]);
-
-  // ✅ Detect voice support (Step 1)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const w = window as any;
-    const hasSTT = !!(w.SpeechRecognition || w.webkitSpeechRecognition);
-    const hasTTS = !!window.speechSynthesis;
-
-    setSupportedSTT(hasSTT);
-    setSupportedTTS(hasTTS);
-  }, []);
-
-  // Safety: stop speaking/listening on unmount
-  useEffect(() => {
-    return () => {
-      stopListening();
-      stopSpeaking();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   function transcriptStringFromTurns(turns: Turn[]) {
     return turns.map((t) => `${t.role.toUpperCase()}: ${t.content}`).join("\n");
   }
@@ -201,6 +243,7 @@ export default function InterviewPage() {
     setLoading(true);
     setError("");
     setCoach(null);
+    setScorecard(null);
     setRaw("");
     setTranscript([]);
     setAnswer("");
@@ -216,6 +259,8 @@ export default function InterviewPage() {
         body: JSON.stringify({
           step: "start",
           company,
+          resumeText,
+          jobDescription,
           blueprint,
           mode,
         }),
@@ -232,8 +277,6 @@ export default function InterviewPage() {
       if (data?.interviewer) {
         const q = data.interviewer as string;
         setTranscript([{ role: "interviewer", content: q }]);
-
-        // ✅ Step 6 pacing: wait a beat then speak
         setTimeout(() => speak(q), 250);
       }
     } catch (e: any) {
@@ -258,7 +301,6 @@ export default function InterviewPage() {
     setError("");
     setRaw("");
 
-    // ✅ Step 4 interruption: stop mic before submitting
     stopListening();
 
     const nextTurns: Turn[] = [
@@ -277,10 +319,12 @@ export default function InterviewPage() {
         body: JSON.stringify({
           step: "followup",
           company,
+          resumeText,
+          jobDescription,
           blueprint,
           mode,
           transcript: transcriptStringFromTurns(nextTurns),
-          candidateAnswer: nextTurns[nextTurns.length - 1].content,
+          candidateAnswer: finalAnswer,
         }),
       });
 
@@ -294,19 +338,12 @@ export default function InterviewPage() {
 
       if (data?.interviewer) {
         const q = data.interviewer as string;
-
-        setTranscript((prev) => [
-          ...prev,
-          { role: "interviewer", content: q },
-        ]);
-
-        // ✅ Step 6 pacing + keep spoken output short
+        setTranscript((prev) => [...prev, { role: "interviewer", content: q }]);
         setTimeout(() => speak(q), 250);
       }
 
-      // coach feedback only after answer
       if (data?.coach) setCoach(data.coach);
-
+      if (data?.scorecard) setScorecard(data.scorecard);
       if (data?.raw) setRaw(data.raw);
     } catch (e: any) {
       setError(e?.message || "Network error");
@@ -320,20 +357,27 @@ export default function InterviewPage() {
     [transcript]
   );
 
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("Copied!");
+    } catch {
+      alert("Copy failed (browser permission).");
+    }
+  }
+
+  const overall = scorecard?.scores?.overall ?? 0;
+  const badge = badgeForScore(overall);
+
   return (
     <main className="min-h-screen p-6 max-w-6xl mx-auto space-y-6">
       <header className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Live Interview (Voice + Text)</h1>
-          <p className="text-sm opacity-80">
-            Day 4 — voice mode (STT + TTS + interruptions)
-          </p>
+          <p className="text-sm opacity-80">Day 5 — STAR detection + scorecard + rewritten answers</p>
         </div>
 
-        <button
-          onClick={() => router.push("/")}
-          className="px-3 py-2 border rounded text-sm"
-        >
+        <button onClick={() => router.push("/")} className="px-3 py-2 border rounded text-sm">
           Back to Blueprint
         </button>
       </header>
@@ -356,34 +400,29 @@ export default function InterviewPage() {
             <select
               className="w-full border rounded p-2"
               value={mode}
-              onChange={(e) =>
-                setMode(e.target.value as "behavioral" | "technical" | "case")
-              }
+              onChange={(e) => setMode(e.target.value as Mode)}
               disabled={!ready || loading}
             >
-              <option value="behavioral">Behavioral</option>
-              <option value="technical">Technical</option>
-              <option value="case">Case</option>
+              {allowedModes.includes("behavioral") && <option value="behavioral">Behavioral</option>}
+              {allowedModes.includes("technical") && <option value="technical">Technical</option>}
+              {allowedModes.includes("case") && <option value="case">Case</option>}
             </select>
             <p className="text-xs opacity-70 mt-1">
-              Default seeded from blueprint. You can override for testing.
+              This is limited by your blueprint: {blueprint?.likely_interview_type ?? "—"}.
             </p>
           </Card>
 
-          {/* ✅ Voice Controls (Step 2 + Step 3 + Step 4) */}
+          {/* Voice Controls */}
           <div className="border rounded p-3 space-y-2">
             <div className="text-sm font-semibold">Voice controls</div>
 
             {!supportedSTT || !supportedTTS ? (
-              <div className="text-xs text-red-600">
-                Voice mode works best in Chrome or Edge.
-              </div>
+              <div className="text-xs text-red-600">Voice mode works best in Chrome or Edge.</div>
             ) : (
               <>
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => {
-                      // ✅ interruption: stop TTS then start listening
                       stopSpeaking();
                       startListening();
                     }}
@@ -414,7 +453,6 @@ export default function InterviewPage() {
 
                   <button
                     onClick={() => {
-                      // if muting while speaking, cancel speech
                       setMuted((m) => {
                         const next = !m;
                         if (next) stopSpeaking();
@@ -428,11 +466,7 @@ export default function InterviewPage() {
                 </div>
 
                 <div className="text-xs opacity-70">
-                  {isListening
-                    ? "Listening…"
-                    : isSpeaking
-                    ? "Interviewer speaking…"
-                    : "Idle"}
+                  {isListening ? "Listening…" : isSpeaking ? "Interviewer speaking…" : "Idle"}
                 </div>
               </>
             )}
@@ -448,15 +482,44 @@ export default function InterviewPage() {
 
           <Card title="Coach feedback">
             {!hasCandidateAnswered ? (
-              <p className="text-xs opacity-70">
-                Submit an answer to see coach feedback.
-              </p>
+              <p className="text-xs opacity-70">Submit an answer to see coach feedback.</p>
             ) : (
               <pre className="text-xs whitespace-pre-wrap opacity-80">
                 {coach
                   ? `Mode: ${coach.mode}\nSTAR: ${coach.star}\nMissing: ${coach.missing}\nWhy: ${coach.why}\nFollow-up intent: ${coach.intent}`
                   : "—"}
               </pre>
+            )}
+          </Card>
+
+          <Card title="Scorecard">
+            {!scorecard ? (
+              <p className="text-xs opacity-70">Submit an answer to score.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-3xl font-bold">{overall}</div>
+                  <div className={`px-2 py-1 border rounded text-xs ${badge.className}`}>
+                    {badge.label}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold">STAR checklist</div>
+                  <StarRow label="Situation" item={scorecard.star.situation} />
+                  <StarRow label="Task" item={scorecard.star.task} />
+                  <StarRow label="Action" item={scorecard.star.action} />
+                  <StarRow label="Result" item={scorecard.star.result} />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold">Category scores</div>
+                  <ScoreRow label="Clarity" value={scorecard.scores.clarity} />
+                  <ScoreRow label="Structure" value={scorecard.scores.structure} />
+                  <ScoreRow label="Impact" value={scorecard.scores.impact} />
+                  <ScoreRow label="Role fit" value={scorecard.scores.roleFit} />
+                </div>
+              </div>
             )}
           </Card>
         </div>
@@ -507,6 +570,49 @@ export default function InterviewPage() {
             </p>
           </Card>
 
+          {scorecard && (
+            <>
+              <Card title="Strengths">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  {(scorecard.strengths || []).map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </Card>
+
+              <Card title="Gaps to fix">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  {(scorecard.gaps || []).map((g, i) => (
+                    <li key={i}>{g}</li>
+                  ))}
+                </ul>
+              </Card>
+
+              <Card title="Rewritten answer (STAR)">
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => copy(scorecard.rewrite.improvedAnswer)}
+                    className="px-3 py-1 rounded border text-sm"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <pre className="text-sm whitespace-pre-wrap">{scorecard.rewrite.improvedAnswer}</pre>
+              </Card>
+
+              <Card title="Bullets to add next time">
+                <ul className="space-y-2 text-sm">
+                  {(scorecard.rewrite.bulletsToAdd || []).map((b, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span>☐</span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </>
+          )}
+
           {raw && (
             <Card title="Debug (raw model output)">
               <pre className="text-xs whitespace-pre-wrap">{raw}</pre>
@@ -523,6 +629,34 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <div className="border rounded p-4 space-y-2">
       <h2 className="text-sm font-semibold">{title}</h2>
       <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+function StarRow({
+  label,
+  item,
+}: {
+  label: string;
+  item: { present: boolean; evidence: string };
+}) {
+  return (
+    <div className="border rounded p-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold">{label}</div>
+        <div className="text-xs">{item.present ? "✅" : "❌"}</div>
+      </div>
+      <div className="text-xs opacity-70 mt-1">{item.evidence}</div>
+    </div>
+  );
+}
+
+function ScoreRow({ label, value }: { label: string; value: number }) {
+  const v = Math.max(0, Math.min(25, Number(value || 0)));
+  return (
+    <div className="flex items-center justify-between border rounded p-2">
+      <div className="text-xs font-semibold">{label}</div>
+      <div className="text-xs">{v}/25</div>
     </div>
   );
 }

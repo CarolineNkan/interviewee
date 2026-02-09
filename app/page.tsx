@@ -3,15 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type InterviewType = "behavioral_technical" | "behavioral_case";
+
 type Blueprint = {
   role_focus: string[];
-  likely_interview_type: "behavioral" | "technical" | "mixed";
+  likely_interview_type: InterviewType;
   risk_gaps: string[];
   company_notes: string[];
-  sample_questions: {
-    type: "behavioral" | "technical" | "case";
-    question: string;
-  }[];
+  sample_questions: { type: "behavioral" | "technical" | "case"; question: string }[];
 };
 
 const MOCK_RESUME = `Caroline Nkan
@@ -30,7 +29,7 @@ export default function Home() {
 
   const [company, setCompany] = useState("Google");
   const [resumeText, setResumeText] = useState(MOCK_RESUME);
-  const [jdText, setJdText] = useState(MOCK_JD);
+  const [jobDescription, setJobDescription] = useState(MOCK_JD);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -41,9 +40,9 @@ export default function Home() {
     return (
       company.trim().length > 1 &&
       resumeText.trim().length > 20 &&
-      jdText.trim().length > 20
+      jobDescription.trim().length > 20
     );
-  }, [company, resumeText, jdText]);
+  }, [company, resumeText, jobDescription]);
 
   async function generateBlueprint() {
     setLoading(true);
@@ -51,36 +50,43 @@ export default function Home() {
     setRaw("");
     setBlueprint(null);
 
-    const res = await fetch("/api/blueprint", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ company, resumeText, jdText }),
-    });
+    try {
+      const res = await fetch("/api/blueprint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company, resumeText, jobDescription }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data?.blueprint) {
-      setBlueprint(data.blueprint);
-      sessionStorage.setItem(
-        "interviewee_blueprint",
-        JSON.stringify(data.blueprint)
-      );
-      sessionStorage.setItem("interviewee_company", company);
-    } else {
-      setError(data?.error || "No blueprint returned");
-      if (data?.raw) setRaw(data.raw);
+      if (data?.blueprint) {
+        setBlueprint(data.blueprint);
+
+        // ✅ store EVERYTHING interview page needs
+        sessionStorage.setItem("interviewee_blueprint", JSON.stringify(data.blueprint));
+        sessionStorage.setItem("interviewee_company", company);
+        sessionStorage.setItem("interviewee_resumeText", resumeText);
+        sessionStorage.setItem("interviewee_jobDescription", jobDescription);
+      } else {
+        setError(data?.error || "No blueprint returned");
+        if (data?.raw) setRaw(data.raw);
+      }
+    } catch (e: any) {
+      setError(e?.message || "Network error");
     }
 
     setLoading(false);
+  }
+
+  function labelLikely(t: InterviewType) {
+    return t === "behavioral_technical" ? "Behavioral + Technical" : "Behavioral + Case";
   }
 
   return (
     <main className="min-h-screen p-6 max-w-6xl mx-auto space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">Interviewee</h1>
-        <p className="text-sm opacity-80">
-          Day 2 — Interview Blueprint Engine (judges can see reasoning)
-        </p>
+        <p className="text-sm opacity-80">Day 2 — Interview Blueprint Engine (judges can see reasoning)</p>
       </header>
 
       <section className="grid md:grid-cols-3 gap-4">
@@ -95,9 +101,7 @@ export default function Home() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">
-              Resume (paste text for now)
-            </label>
+            <label className="text-sm font-medium">Resume (paste text for now)</label>
             <textarea
               className="w-full border rounded p-2 min-h-[180px]"
               value={resumeText}
@@ -109,8 +113,8 @@ export default function Home() {
             <label className="text-sm font-medium">Job Description</label>
             <textarea
               className="w-full border rounded p-2 min-h-[180px]"
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
             />
           </div>
 
@@ -133,39 +137,32 @@ export default function Home() {
         <div className="md:col-span-2 space-y-4">
           {!blueprint ? (
             <div className="border rounded p-6 text-sm opacity-80">
-              Paste your inputs and generate a blueprint. This becomes the
-              reasoning dashboard.
+              Paste your inputs and generate a blueprint. This becomes the reasoning dashboard.
             </div>
           ) : (
             <>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Card title="Likely interview type">
                   <span className="inline-block px-2 py-1 border rounded text-sm">
-                    {blueprint.likely_interview_type.toUpperCase()}
+                    {labelLikely(blueprint.likely_interview_type)}
                   </span>
                 </Card>
 
                 <Card title="Role focus (what they’ll test)">
                   <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.role_focus.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
+                    {blueprint.role_focus.map((x, i) => <li key={i}>{x}</li>)}
                   </ul>
                 </Card>
 
                 <Card title="Risk gaps (what to strengthen)">
                   <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.risk_gaps.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
+                    {blueprint.risk_gaps.map((x, i) => <li key={i}>{x}</li>)}
                   </ul>
                 </Card>
 
                 <Card title="Company notes (what to know)">
                   <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.company_notes.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
+                    {blueprint.company_notes.map((x, i) => <li key={i}>{x}</li>)}
                   </ul>
                 </Card>
               </div>
@@ -174,9 +171,7 @@ export default function Home() {
                 <div className="space-y-3">
                   {blueprint.sample_questions.map((q, i) => (
                     <div key={i} className="border rounded p-3">
-                      <div className="text-xs uppercase opacity-70">
-                        {q.type}
-                      </div>
+                      <div className="text-xs uppercase opacity-70">{q.type}</div>
                       <div className="text-sm">{q.question}</div>
                     </div>
                   ))}
@@ -184,11 +179,8 @@ export default function Home() {
               </Card>
 
               <div className="flex gap-3">
-                <button
-                  onClick={() => router.push("/interview")}
-                  className="px-4 py-2 rounded bg-black text-white"
-                >
-                  Start Interview (Day 3)
+                <button onClick={() => router.push("/interview")} className="px-4 py-2 rounded bg-black text-white">
+                  Start Interview
                 </button>
 
                 <button
@@ -216,13 +208,7 @@ export default function Home() {
   );
 }
 
-function Card({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="border rounded p-4 space-y-2">
       <h2 className="text-sm font-semibold">{title}</h2>
