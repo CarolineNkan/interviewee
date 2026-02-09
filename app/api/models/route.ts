@@ -8,7 +8,7 @@ export async function GET() {
   const ai = new GoogleGenAI({ apiKey });
 
   // listModels exists in current Gemini API docs; if your installed SDK version differs,
-  // you’ll immediately see a runtime error (also useful).
+  
   const models = await (ai as any).models.list();
   return NextResponse.json({ models });
 }
