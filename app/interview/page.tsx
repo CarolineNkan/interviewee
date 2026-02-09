@@ -402,7 +402,7 @@ export default function InterviewPage() {
           </div>
         )}
 
-        <section className="grid lg:grid-cols-[360px_1fr] gap-6">
+        <section className="grid lg:grid-cols-[440px_1fr] gap-6">
           {/* LEFT */}
           <aside className="lg:sticky lg:top-6 h-fit space-y-4">
             <Panel>
