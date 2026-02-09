@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type InterviewType = "behavioral_technical" | "behavioral_case";
@@ -44,6 +44,10 @@ export default function Home() {
     );
   }, [company, resumeText, jobDescription]);
 
+  function labelLikely(t: InterviewType) {
+    return t === "behavioral_technical" ? "Behavioral + Technical" : "Behavioral + Case";
+  }
+
   async function generateBlueprint() {
     setLoading(true);
     setError("");
@@ -59,10 +63,14 @@ export default function Home() {
 
       const data = await res.json();
 
+      if (!res.ok) {
+        setError(data?.error || `Request failed (${res.status})`);
+        if (data?.raw) setRaw(data.raw);
+        return;
+      }
+
       if (data?.blueprint) {
         setBlueprint(data.blueprint);
-
-        // ✅ store EVERYTHING interview page needs
         sessionStorage.setItem("interviewee_blueprint", JSON.stringify(data.blueprint));
         sessionStorage.setItem("interviewee_company", company);
         sessionStorage.setItem("interviewee_resumeText", resumeText);
@@ -72,147 +80,265 @@ export default function Home() {
         if (data?.raw) setRaw(data.raw);
       }
     } catch (e: any) {
-      setError(e?.message || "Network error");
+      setError(e?.message ?? "Network error");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-  }
-
-  function labelLikely(t: InterviewType) {
-    return t === "behavioral_technical" ? "Behavioral + Technical" : "Behavioral + Case";
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-6xl mx-auto space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold">Interviewee</h1>
-        <p className="text-sm opacity-80">Day 2 — Interview Blueprint Engine (judges can see reasoning)</p>
-      </header>
-
-      <section className="grid md:grid-cols-3 gap-4">
-        <div className="md:col-span-1 space-y-3">
+    <main className="min-h-screen bg-neutral-50">
+      {/* Top bar (dark) */}
+      <div className="border-b bg-black text-white">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div className="space-y-1">
-            <label className="text-sm font-medium">Company</label>
-            <input
-              className="w-full border rounded p-2"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-            />
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Interviewee</h1>
+            <p className="text-sm text-white/70">
+              Day 2 — Interview Blueprint Engine{" "}
+              <span className="hidden sm:inline">(judges can see reasoning)</span>
+            </p>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Resume (paste text for now)</label>
-            <textarea
-              className="w-full border rounded p-2 min-h-[180px]"
-              value={resumeText}
-              onChange={(e) => setResumeText(e.target.value)}
-            />
+          <div className="hidden md:flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Gemini-powered
+            </span>
           </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Job Description</label>
-            <textarea
-              className="w-full border rounded p-2 min-h-[180px]"
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-            />
-          </div>
-
-          <button
-            onClick={generateBlueprint}
-            disabled={!canGenerate || loading}
-            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-          >
-            {loading ? "Generating..." : "Generate Interview Blueprint"}
-          </button>
-
-          {error && (
-            <div className="border rounded p-3 text-sm">
-              <p className="font-semibold">Error</p>
-              <p className="opacity-80">{error}</p>
-            </div>
-          )}
         </div>
+      </div>
 
-        <div className="md:col-span-2 space-y-4">
-          {!blueprint ? (
-            <div className="border rounded p-6 text-sm opacity-80">
-              Paste your inputs and generate a blueprint. This becomes the reasoning dashboard.
-            </div>
-          ) : (
-            <>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Card title="Likely interview type">
-                  <span className="inline-block px-2 py-1 border rounded text-sm">
+      {/* Dashboard layout */}
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+          {/* Left panel */}
+          <aside className="lg:sticky lg:top-6 h-fit">
+            <Panel>
+              <div className="space-y-1">
+                <h2 className="text-sm font-semibold">Inputs</h2>
+                <p className="text-xs text-black/60">
+                  Paste your info, generate a blueprint, then run a live interview.
+                </p>
+              </div>
+
+              <Divider />
+
+              <Field label="Company">
+                <input
+                  className="w-full rounded-xl border bg-white px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="e.g., Google"
+                />
+              </Field>
+
+              <Field label="Resume (paste text for now)">
+                <textarea
+                  className="w-full rounded-xl border bg-white px-3 py-2 text-sm min-h-[160px] resize-y outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
+                  value={resumeText}
+                  onChange={(e) => setResumeText(e.target.value)}
+                  placeholder="Paste resume text…"
+                />
+              </Field>
+
+              <Field label="Job Description">
+                <textarea
+                  className="w-full rounded-xl border bg-white px-3 py-2 text-sm min-h-[160px] resize-y outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste job description…"
+                />
+              </Field>
+
+              <button
+                onClick={generateBlueprint}
+                disabled={!canGenerate || loading}
+                className="w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600"
+              >
+                {loading ? "Generating…" : "Generate Interview Blueprint"}
+              </button>
+
+              <div className="rounded-xl border bg-neutral-50 p-3">
+                <p className="text-xs text-black/60">
+                  <span className="font-semibold text-black/70">Demo tip:</span> Use your real resume +
+                  the real JD for the most convincing “judge flow”.
+                </p>
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm">
+                  <div className="font-semibold text-red-700 mb-1">Error</div>
+                  <div className="text-red-700/90 whitespace-pre-wrap break-words">{error}</div>
+                </div>
+              )}
+            </Panel>
+          </aside>
+
+          {/* Right panel */}
+          <section className="space-y-6">
+            {!blueprint ? (
+              <Panel>
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-sm font-semibold">Reasoning dashboard</h2>
+                      <p className="text-sm text-black/60">
+                        Your blueprint appears here (role focus, gaps, interview type, sample questions).
+                      </p>
+                    </div>
+                    <span className="hidden sm:inline-flex rounded-full border bg-white px-3 py-1 text-xs text-black/60">
+                      Step 1 → Generate blueprint
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                    <SkeletonCard title="Likely interview type" />
+                    <SkeletonCard title="Role focus" />
+                    <SkeletonCard title="Risk gaps" />
+                    <SkeletonCard title="Company notes" />
+                  </div>
+                </div>
+              </Panel>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-semibold">Reasoning dashboard</h2>
+                    <p className="text-xs text-black/60">
+                      This is the “judge explanation layer” — what the model inferred and why.
+                    </p>
+                  </div>
+
+                  <span className="inline-flex items-center rounded-full border bg-white px-3 py-1 text-xs font-semibold text-black/70">
                     {labelLikely(blueprint.likely_interview_type)}
                   </span>
-                </Card>
-
-                <Card title="Role focus (what they’ll test)">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.role_focus.map((x, i) => <li key={i}>{x}</li>)}
-                  </ul>
-                </Card>
-
-                <Card title="Risk gaps (what to strengthen)">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.risk_gaps.map((x, i) => <li key={i}>{x}</li>)}
-                  </ul>
-                </Card>
-
-                <Card title="Company notes (what to know)">
-                  <ul className="list-disc pl-5 space-y-1">
-                    {blueprint.company_notes.map((x, i) => <li key={i}>{x}</li>)}
-                  </ul>
-                </Card>
-              </div>
-
-              <Card title="Sample questions (preview)">
-                <div className="space-y-3">
-                  {blueprint.sample_questions.map((q, i) => (
-                    <div key={i} className="border rounded p-3">
-                      <div className="text-xs uppercase opacity-70">{q.type}</div>
-                      <div className="text-sm">{q.question}</div>
-                    </div>
-                  ))}
                 </div>
-              </Card>
 
-              <div className="flex gap-3">
-                <button onClick={() => router.push("/interview")} className="px-4 py-2 rounded bg-black text-white">
-                  Start Interview
-                </button>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Card title="Role focus (what they’ll test)">
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {blueprint.role_focus.map((x, i) => (
+                        <li key={i}>{x}</li>
+                      ))}
+                    </ul>
+                  </Card>
 
-                <button
-                  onClick={() => {
-                    setBlueprint(null);
-                    setRaw("");
-                    setError("");
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Reset
-                </button>
-              </div>
-            </>
-          )}
+                  <Card title="Company notes (what to know)">
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {blueprint.company_notes.map((x, i) => (
+                        <li key={i}>{x}</li>
+                      ))}
+                    </ul>
+                  </Card>
 
-          {raw && (
-            <Card title="Raw model output (debug)">
-              <pre className="whitespace-pre-wrap text-xs">{raw}</pre>
-            </Card>
-          )}
+                  <Card title="Risk gaps (what to strengthen)">
+                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                      {blueprint.risk_gaps.map((x, i) => (
+                        <li key={i}>{x}</li>
+                      ))}
+                    </ul>
+                  </Card>
+
+                  <Card title="Likely interview type">
+                    <div className="text-sm text-black/70">
+                      Your strongest “Day 3 live interview” mode is already selected based on this.
+                    </div>
+                    <div className="mt-3 inline-flex items-center rounded-full border bg-neutral-50 px-3 py-1 text-xs font-semibold">
+                      {labelLikely(blueprint.likely_interview_type)}
+                    </div>
+                  </Card>
+                </div>
+
+                <Card title="Sample questions (preview)">
+                  <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+                    {blueprint.sample_questions.map((q, i) => (
+                      <div key={i} className="rounded-xl border bg-white p-3">
+                        <div className="text-[11px] font-semibold tracking-wider text-black/50 uppercase">
+                          {q.type}
+                        </div>
+                        <div className="text-sm">{q.question}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => router.push("/interview")}
+                    className="rounded-xl bg-black text-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-black/90"
+                  >
+                    Start Interview
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setBlueprint(null);
+                      setRaw("");
+                      setError("");
+                    }}
+                    className="rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold hover:bg-neutral-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </>
+            )}
+
+            {raw && (
+              <Panel>
+                <div className="text-sm font-semibold mb-2">Raw model output (debug)</div>
+                <pre className="whitespace-pre-wrap text-xs text-black/70">{raw}</pre>
+              </Panel>
+            )}
+          </section>
         </div>
-      </section>
+      </div>
     </main>
+  );
+}
+
+/* ---------- UI helpers ---------- */
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 md:p-5 space-y-4 shadow-sm">
+      {children}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-black/10" />;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-semibold text-black/70">{label}</label>
+      {children}
+    </div>
   );
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border rounded p-4 space-y-2">
+    <div className="rounded-2xl border bg-white p-4 md:p-5 space-y-2 shadow-sm">
       <h2 className="text-sm font-semibold">{title}</h2>
-      <div className="text-sm">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }
+
+function SkeletonCard({ title }: { title: string }) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="mt-3 space-y-2">
+        <div className="h-3 w-5/6 rounded bg-black/10" />
+        <div className="h-3 w-4/6 rounded bg-black/10" />
+        <div className="h-3 w-3/6 rounded bg-black/10" />
+      </div>
+    </div>
+  );
+}
+

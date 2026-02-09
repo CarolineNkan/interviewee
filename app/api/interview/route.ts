@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       "gemini-1.5-flash",
     ].filter(Boolean) as string[];
 
-    // --- START: return first question immediately ---
+    //START: return first question immediately
     if (step === "start") {
       const seed =
         (blueprint?.sample_questions || [])

@@ -43,9 +43,9 @@ type Scorecard = {
 };
 
 function badgeForScore(overall: number) {
-  if (overall >= 85) return { label: "🟢 Strong", className: "border-green-600" };
-  if (overall >= 70) return { label: "🟡 Good but sharpen", className: "border-yellow-600" };
-  return { label: "🔴 Needs work", className: "border-red-600" };
+  if (overall >= 85) return { label: "🟢 Strong", className: "border-emerald-500 bg-emerald-50 text-emerald-700" };
+  if (overall >= 70) return { label: "🟡 Good but sharpen", className: "border-yellow-500 bg-yellow-50 text-yellow-800" };
+  return { label: "🔴 Needs work", className: "border-red-500 bg-red-50 text-red-700" };
 }
 
 export default function InterviewPage() {
@@ -303,10 +303,7 @@ export default function InterviewPage() {
 
     stopListening();
 
-    const nextTurns: Turn[] = [
-      ...transcript,
-      { role: "candidate", content: finalAnswer },
-    ];
+    const nextTurns: Turn[] = [...transcript, { role: "candidate", content: finalAnswer }];
 
     setTranscript(nextTurns);
     setAnswer("");
@@ -370,265 +367,422 @@ export default function InterviewPage() {
   const badge = badgeForScore(overall);
 
   return (
-    <main className="min-h-screen p-6 max-w-6xl mx-auto space-y-6">
-      <header className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Live Interview (Voice + Text)</h1>
-          <p className="text-sm opacity-80">Day 5 — STAR detection + scorecard + rewritten answers</p>
-        </div>
-
-        <button onClick={() => router.push("/")} className="px-3 py-2 border rounded text-sm">
-          Back to Blueprint
-        </button>
-      </header>
-
-      {error && (
-        <div className="border rounded p-3 text-sm">
-          <div className="font-semibold">Error</div>
-          <div className="opacity-80">{error}</div>
-        </div>
-      )}
-
-      <section className="grid md:grid-cols-3 gap-4">
-        {/* LEFT */}
-        <div className="space-y-4">
-          <Card title="Company">
-            <p>{company || "—"}</p>
-          </Card>
-
-          <Card title="Interview mode">
-            <select
-              className="w-full border rounded p-2"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as Mode)}
-              disabled={!ready || loading}
-            >
-              {allowedModes.includes("behavioral") && <option value="behavioral">Behavioral</option>}
-              {allowedModes.includes("technical") && <option value="technical">Technical</option>}
-              {allowedModes.includes("case") && <option value="case">Case</option>}
-            </select>
-            <p className="text-xs opacity-70 mt-1">
-              This is limited by your blueprint: {blueprint?.likely_interview_type ?? "—"}.
+    <main className="min-h-screen bg-neutral-50">
+      {/* Top bar (match homepage) */}
+      <div className="border-b bg-black text-white">
+        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Live Interview (Voice + Text)</h1>
+            <p className="text-sm text-white/70">
+              Day 5 — STAR detection + scorecard + rewritten answers
             </p>
-          </Card>
-
-          {/* Voice Controls */}
-          <div className="border rounded p-3 space-y-2">
-            <div className="text-sm font-semibold">Voice controls</div>
-
-            {!supportedSTT || !supportedTTS ? (
-              <div className="text-xs text-red-600">Voice mode works best in Chrome or Edge.</div>
-            ) : (
-              <>
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={() => {
-                      stopSpeaking();
-                      startListening();
-                    }}
-                    disabled={isListening || loading}
-                    className="px-3 py-1 rounded border text-sm disabled:opacity-50"
-                  >
-                    🎙 Start Voice Answer
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      stopListening();
-                      stopSpeaking();
-                    }}
-                    disabled={!isListening && !isSpeaking}
-                    className="px-3 py-1 rounded border text-sm disabled:opacity-50"
-                  >
-                    ⏹ Stop Voice
-                  </button>
-
-                  <button
-                    onClick={readLastInterviewer}
-                    disabled={loading || transcript.length === 0 || muted}
-                    className="px-3 py-1 rounded border text-sm disabled:opacity-50"
-                  >
-                    🔊 Read Interviewer
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setMuted((m) => {
-                        const next = !m;
-                        if (next) stopSpeaking();
-                        return next;
-                      });
-                    }}
-                    className="px-3 py-1 rounded border text-sm"
-                  >
-                    {muted ? "🔈 Unmute" : "🔇 Mute"}
-                  </button>
-                </div>
-
-                <div className="text-xs opacity-70">
-                  {isListening ? "Listening…" : isSpeaking ? "Interviewer speaking…" : "Idle"}
-                </div>
-              </>
-            )}
           </div>
 
-          <button
-            onClick={startInterview}
-            disabled={!ready || loading}
-            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-          >
-            {loading ? "Starting..." : "Start Interview"}
-          </button>
-
-          <Card title="Coach feedback">
-            {!hasCandidateAnswered ? (
-              <p className="text-xs opacity-70">Submit an answer to see coach feedback.</p>
-            ) : (
-              <pre className="text-xs whitespace-pre-wrap opacity-80">
-                {coach
-                  ? `Mode: ${coach.mode}\nSTAR: ${coach.star}\nMissing: ${coach.missing}\nWhy: ${coach.why}\nFollow-up intent: ${coach.intent}`
-                  : "—"}
-              </pre>
-            )}
-          </Card>
-
-          <Card title="Scorecard">
-            {!scorecard ? (
-              <p className="text-xs opacity-70">Submit an answer to score.</p>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-3xl font-bold">{overall}</div>
-                  <div className={`px-2 py-1 border rounded text-xs ${badge.className}`}>
-                    {badge.label}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold">STAR checklist</div>
-                  <StarRow label="Situation" item={scorecard.star.situation} />
-                  <StarRow label="Task" item={scorecard.star.task} />
-                  <StarRow label="Action" item={scorecard.star.action} />
-                  <StarRow label="Result" item={scorecard.star.result} />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-xs font-semibold">Category scores</div>
-                  <ScoreRow label="Clarity" value={scorecard.scores.clarity} />
-                  <ScoreRow label="Structure" value={scorecard.scores.structure} />
-                  <ScoreRow label="Impact" value={scorecard.scores.impact} />
-                  <ScoreRow label="Role fit" value={scorecard.scores.roleFit} />
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* RIGHT */}
-        <div className="md:col-span-2 space-y-4">
-          <Card title="Transcript">
-            {transcript.length === 0 ? (
-              <p className="text-sm opacity-70">Click “Start Interview” to begin.</p>
-            ) : (
-              <div className="space-y-3">
-                {transcript.map((t, i) => (
-                  <div key={i} className="border rounded p-3">
-                    <div className="text-xs uppercase opacity-70">{t.role}</div>
-                    <div className="text-sm">{t.content}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card title="Your answer">
-            <textarea
-              className="w-full border rounded p-2 min-h-[120px]"
-              value={isListening ? draftAnswer : answer}
-              onChange={(e) => {
-                setDraftAnswer(e.target.value);
-                setAnswer(e.target.value);
-              }}
-              placeholder={
-                mode === "behavioral"
-                  ? "Type your answer or use 🎙 voice. Try STAR for behavioral."
-                  : "Type your answer or use 🎙 voice."
-              }
-              disabled={!ready || loading}
-            />
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-white/80">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Gemini-powered
+            </span>
 
             <button
-              onClick={submitAnswer}
-              disabled={!ready || loading || !(draftAnswer || answer).trim()}
-              className="mt-3 px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+              onClick={() => router.push("/")}
+              className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm hover:bg-white/15"
             >
-              {loading ? "Thinking..." : "Submit Answer"}
+              Back to Blueprint
             </button>
-
-            <p className="text-xs opacity-70 mt-1">
-              Tip: Speak → text appears → submit → Interviewer responds out loud.
-            </p>
-          </Card>
-
-          {scorecard && (
-            <>
-              <Card title="Strengths">
-                <ul className="list-disc pl-5 space-y-1 text-sm">
-                  {(scorecard.strengths || []).map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
-              </Card>
-
-              <Card title="Gaps to fix">
-                <ul className="list-disc pl-5 space-y-1 text-sm">
-                  {(scorecard.gaps || []).map((g, i) => (
-                    <li key={i}>{g}</li>
-                  ))}
-                </ul>
-              </Card>
-
-              <Card title="Rewritten answer (STAR)">
-                <div className="flex justify-end mb-2">
-                  <button
-                    onClick={() => copy(scorecard.rewrite.improvedAnswer)}
-                    className="px-3 py-1 rounded border text-sm"
-                  >
-                    Copy
-                  </button>
-                </div>
-                <pre className="text-sm whitespace-pre-wrap">{scorecard.rewrite.improvedAnswer}</pre>
-              </Card>
-
-              <Card title="Bullets to add next time">
-                <ul className="space-y-2 text-sm">
-                  {(scorecard.rewrite.bulletsToAdd || []).map((b, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span>☐</span>
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            </>
-          )}
-
-          {raw && (
-            <Card title="Debug (raw model output)">
-              <pre className="text-xs whitespace-pre-wrap">{raw}</pre>
-            </Card>
-          )}
+          </div>
         </div>
-      </section>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        {error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm">
+            <div className="font-semibold text-red-700">Error</div>
+            <div className="text-red-700/90 whitespace-pre-wrap break-words">{error}</div>
+          </div>
+        )}
+
+        <section className="grid lg:grid-cols-[360px_1fr] gap-6">
+          {/* LEFT */}
+          <aside className="lg:sticky lg:top-6 h-fit space-y-4">
+            <Panel>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Session</h2>
+                  <p className="text-xs text-black/60">
+                    Start → answer → follow-up → feedback.
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full border bg-white px-3 py-1 text-xs text-black/60">
+                  {loading ? "Running…" : "Ready"}
+                </span>
+              </div>
+
+              <Divider />
+
+              <div className="grid gap-3">
+                <MiniStat label="Company" value={company || "—"} />
+                <MiniStat
+                  label="Mode"
+                  value={mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  hint={blueprint?.likely_interview_type ? `Blueprint: ${blueprint.likely_interview_type}` : ""}
+                />
+              </div>
+
+              <Divider />
+
+              <Field label="Interview mode">
+                <select
+                  className="w-full rounded-xl border bg-white px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as Mode)}
+                  disabled={!ready || loading}
+                >
+                  {allowedModes.includes("behavioral") && <option value="behavioral">Behavioral</option>}
+                  {allowedModes.includes("technical") && <option value="technical">Technical</option>}
+                  {allowedModes.includes("case") && <option value="case">Case</option>}
+                </select>
+                <p className="text-xs text-black/50 mt-1">
+                  Limited by blueprint: {blueprint?.likely_interview_type ?? "—"}.
+                </p>
+              </Field>
+
+              {/* Voice Controls */}
+              <div className="rounded-2xl border bg-white p-4 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">Voice controls</div>
+                  <span className="text-xs text-black/50">
+                    {isListening ? "Listening…" : isSpeaking ? "Speaking…" : "Idle"}
+                  </span>
+                </div>
+
+                {!supportedSTT || !supportedTTS ? (
+                  <div className="text-xs text-red-600">
+                    Voice works best in Chrome or Edge.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Btn
+                      onClick={() => {
+                        stopSpeaking();
+                        startListening();
+                      }}
+                      disabled={isListening || loading}
+                    >
+                      🎙 Start Voice
+                    </Btn>
+
+                    <Btn
+                      onClick={() => {
+                        stopListening();
+                        stopSpeaking();
+                      }}
+                      disabled={!isListening && !isSpeaking}
+                    >
+                      ⏹ Stop
+                    </Btn>
+
+                    <Btn onClick={readLastInterviewer} disabled={loading || transcript.length === 0 || muted}>
+                      🔊 Read
+                    </Btn>
+
+                    <Btn
+                      onClick={() => {
+                        setMuted((m) => {
+                          const next = !m;
+                          if (next) stopSpeaking();
+                          return next;
+                        });
+                      }}
+                    >
+                      {muted ? "🔈 Unmute" : "🔇 Mute"}
+                    </Btn>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={startInterview}
+                disabled={!ready || loading}
+                className="w-full rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {loading ? "Starting…" : "Start Interview"}
+              </button>
+
+              <div className="rounded-xl border bg-neutral-50 p-3">
+                <p className="text-xs text-black/60">
+                  Tip: Speak → text appears → submit → interviewer responds aloud.
+                </p>
+              </div>
+            </Panel>
+
+            <Panel>
+              <h2 className="text-sm font-semibold">Coach feedback</h2>
+              {!hasCandidateAnswered ? (
+                <p className="text-xs text-black/60">Submit an answer to see feedback.</p>
+              ) : (
+                <pre className="text-xs whitespace-pre-wrap text-black/70">
+                  {coach
+                    ? `Mode: ${coach.mode}\nSTAR: ${coach.star}\nMissing: ${coach.missing}\nWhy: ${coach.why}\nFollow-up intent: ${coach.intent}`
+                    : "—"}
+                </pre>
+              )}
+            </Panel>
+
+            <Panel>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Scorecard</h2>
+                {scorecard ? (
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badge.className}`}>
+                    {badge.label}
+                  </span>
+                ) : null}
+              </div>
+
+              {!scorecard ? (
+                <p className="text-xs text-black/60">Submit an answer to score.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="text-xs text-black/50">Overall</div>
+                      <div className="text-4xl font-bold">{overall}</div>
+                    </div>
+
+                    <div className="text-right text-xs text-black/50">
+                      Out of 100
+                    </div>
+                  </div>
+
+                  <Divider />
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-black/70">STAR checklist</div>
+                    <StarRow label="Situation" item={scorecard.star.situation} />
+                    <StarRow label="Task" item={scorecard.star.task} />
+                    <StarRow label="Action" item={scorecard.star.action} />
+                    <StarRow label="Result" item={scorecard.star.result} />
+                  </div>
+
+                  <Divider />
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-black/70">Category scores</div>
+                    <ScoreRow label="Clarity" value={scorecard.scores.clarity} />
+                    <ScoreRow label="Structure" value={scorecard.scores.structure} />
+                    <ScoreRow label="Impact" value={scorecard.scores.impact} />
+                    <ScoreRow label="Role fit" value={scorecard.scores.roleFit} />
+                  </div>
+                </div>
+              )}
+            </Panel>
+          </aside>
+
+          {/* RIGHT */}
+          <section className="space-y-6">
+            <Panel>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Transcript</h2>
+                  <p className="text-xs text-black/60">
+                    Interviewer ↔ candidate turns.
+                  </p>
+                </div>
+                <span className="text-xs text-black/50">
+                  {transcript.length ? `${transcript.length} turns` : "No turns yet"}
+                </span>
+              </div>
+
+              <Divider />
+
+              {transcript.length === 0 ? (
+                <p className="text-sm text-black/60">Click “Start Interview” to begin.</p>
+              ) : (
+                <div className="space-y-3">
+                  {transcript.map((t, i) => (
+                    <div
+                      key={i}
+                      className={`rounded-2xl border p-4 ${
+                        t.role === "interviewer"
+                          ? "bg-white"
+                          : "bg-emerald-50 border-emerald-200"
+                      }`}
+                    >
+                      <div className="text-[11px] font-semibold tracking-wider text-black/50 uppercase">
+                        {t.role}
+                      </div>
+                      <div className="text-sm mt-1">{t.content}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <Panel>
+              <h2 className="text-sm font-semibold">Your answer</h2>
+              <p className="text-xs text-black/60">
+                Type or use voice. For behavioral, try STAR.
+              </p>
+
+              <Divider />
+
+              <textarea
+                className="w-full rounded-2xl border bg-white p-3 text-sm min-h-[140px] outline-none focus:ring-4 focus:ring-emerald-200 focus:border-emerald-500"
+                value={isListening ? draftAnswer : answer}
+                onChange={(e) => {
+                  setDraftAnswer(e.target.value);
+                  setAnswer(e.target.value);
+                }}
+                placeholder={
+                  mode === "behavioral"
+                    ? "Situation… Task… Action… Result…"
+                    : "Type your answer…"
+                }
+                disabled={!ready || loading}
+              />
+
+              <div className="mt-3 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={submitAnswer}
+                  disabled={!ready || loading || !(draftAnswer || answer).trim()}
+                  className="rounded-xl bg-black text-white px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-black/90 disabled:opacity-50"
+                >
+                  {loading ? "Thinking…" : "Submit Answer"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setAnswer("");
+                    setDraftAnswer("");
+                  }}
+                  disabled={loading || (!(draftAnswer || answer).trim() && !isListening)}
+                  className="rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  Clear
+                </button>
+              </div>
+            </Panel>
+
+            {scorecard && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <Panel>
+                  <h2 className="text-sm font-semibold">Strengths</h2>
+                  <Divider />
+                  <ul className="list-disc pl-5 space-y-2 text-sm">
+                    {(scorecard.strengths || []).map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </Panel>
+
+                <Panel>
+                  <h2 className="text-sm font-semibold">Gaps to fix</h2>
+                  <Divider />
+                  <ul className="list-disc pl-5 space-y-2 text-sm">
+                    {(scorecard.gaps || []).map((g, i) => (
+                      <li key={i}>{g}</li>
+                    ))}
+                  </ul>
+                </Panel>
+
+                <Panel>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-semibold">Rewritten answer (STAR)</h2>
+                    <button
+                      onClick={() => copy(scorecard.rewrite.improvedAnswer)}
+                      className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold hover:bg-neutral-50"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <Divider />
+                  <pre className="text-sm whitespace-pre-wrap text-black/80">
+                    {scorecard.rewrite.improvedAnswer}
+                  </pre>
+                </Panel>
+
+                <Panel>
+                  <h2 className="text-sm font-semibold">Bullets to add next time</h2>
+                  <Divider />
+                  <ul className="space-y-2 text-sm">
+                    {(scorecard.rewrite.bulletsToAdd || []).map((b, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span>☐</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+              </div>
+            )}
+
+            {raw && (
+              <Panel>
+                <h2 className="text-sm font-semibold">Debug (raw model output)</h2>
+                <Divider />
+                <pre className="text-xs whitespace-pre-wrap text-black/70">{raw}</pre>
+              </Panel>
+            )}
+          </section>
+        </section>
+      </div>
     </main>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+/* ---------- UI helpers (design-only) ---------- */
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-2xl border bg-white p-4 md:p-5 space-y-4 shadow-sm">{children}</div>;
+}
+
+function Divider() {
+  return <div className="h-px bg-black/10" />;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border rounded p-4 space-y-2">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      <div className="text-sm">{children}</div>
+    <div className="space-y-1">
+      <label className="text-xs font-semibold text-black/70">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Btn({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold hover:bg-neutral-50 disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-neutral-50 p-3">
+      <div className="text-xs font-semibold text-black/60">{label}</div>
+      <div className="text-sm font-semibold mt-1">{value}</div>
+      {hint ? <div className="text-xs text-black/50 mt-1">{hint}</div> : null}
     </div>
   );
 }
@@ -641,12 +795,12 @@ function StarRow({
   item: { present: boolean; evidence: string };
 }) {
   return (
-    <div className="border rounded p-2">
+    <div className="rounded-xl border bg-white p-3">
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold">{label}</div>
         <div className="text-xs">{item.present ? "✅" : "❌"}</div>
       </div>
-      <div className="text-xs opacity-70 mt-1">{item.evidence}</div>
+      <div className="text-xs text-black/60 mt-1">{item.evidence}</div>
     </div>
   );
 }
@@ -654,9 +808,9 @@ function StarRow({
 function ScoreRow({ label, value }: { label: string; value: number }) {
   const v = Math.max(0, Math.min(25, Number(value || 0)));
   return (
-    <div className="flex items-center justify-between border rounded p-2">
+    <div className="flex items-center justify-between rounded-xl border bg-white p-3">
       <div className="text-xs font-semibold">{label}</div>
-      <div className="text-xs">{v}/25</div>
+      <div className="text-xs text-black/60">{v}/25</div>
     </div>
   );
 }

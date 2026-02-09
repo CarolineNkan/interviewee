@@ -57,7 +57,6 @@ async function generateWithRetry(ai: GoogleGenAI, model: string, prompt: string)
       if (status === 404) return { ok: false as const, raw: "", fatal: true, err };
 
       // Retry-after handling (429 quota / rate limit)
-      // Gemini often includes "Please retry in XXs" in message
       const match = msg.match(/retry in\s+([\d.]+)s/i);
       const waitSeconds = match ? Number(match[1]) : 2 + attempt * 2;
 
@@ -85,22 +84,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Accept either env var name (you’ve used both during debugging)
-    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey =  process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Missing GOOGLE_API_KEY (or GEMINI_API_KEY) in .env.local" },
+        { error: "Missing or GEMINI_API_KEY in .env.local" },
         { status: 500 }
       );
     }
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // ✅ Use Gemini 3 Flash API model name (preview) first.
-    // Fallbacks help if a judge’s environment doesn’t have the preview enabled.
+    // Use Gemini 3 Flash API model name (preview) first.
+    // Fallbacks incase a judge’s environment doesn’t have the preview enabled.
     const modelCandidates = [
       process.env.GEMINI_MODEL, // allow override
-      "gemini-3-flash-preview", // <— correct for v1beta examples :contentReference[oaicite:1]{index=1}
+      "gemini-3-flash-preview", 
       "gemini-2.0-flash",
       "gemini-1.5-flash",
     ].filter(Boolean) as string[];
